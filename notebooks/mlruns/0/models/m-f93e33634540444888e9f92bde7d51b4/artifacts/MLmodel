@@ -1,0 +1,23 @@
+artifact_path: file:c:/Users/cstone/Downloads/VS Code/MLB Pitch Prediction/notebooks/mlruns/0/models/m-f93e33634540444888e9f92bde7d51b4/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.3
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+    skops_trusted_types: null
+mlflow_version: 3.10.1
+model_id: m-f93e33634540444888e9f92bde7d51b4
+model_size_bytes: 2459353
+model_uuid: m-f93e33634540444888e9f92bde7d51b4
+prompts: null
+run_id: b53667a5484d43cfb4342714ad679e97
+utc_time_created: '2026-03-31 16:57:34.628100'
