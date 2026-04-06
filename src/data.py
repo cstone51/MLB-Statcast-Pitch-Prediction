@@ -29,7 +29,7 @@ def pull_data (first_name, last_name, start_date, end_date, team_abbreviation = 
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     '''
-    Clean the raw data and return a DataFrame ready for feature engineering.
+    clean the raw data and return a DataFrame ready for feature engineering.
     '''
     df = df.copy()
 

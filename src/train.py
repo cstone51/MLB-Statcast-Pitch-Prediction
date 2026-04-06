@@ -1,4 +1,9 @@
+
+from datetime import date
+
+from matplotlib.dates import relativedelta
 import numpy as np
+import pandas as pd
 import joblib
 import mlflow
 import mlflow.sklearn
@@ -19,7 +24,7 @@ from .features import feature_engineering, build_feature_pipeline, build_feature
 MODEL_OUTPUT_PATH = Path("models/model.joblib")
 
 
-# def build_pipeline(num_classes: int) -> Pipeline:
+# def build_pipeline(num_classes: int, class_weights: dict = None) -> Pipeline:
 #     return Pipeline([
 #         ("preprocessor", build_feature_pipeline()),
 #         ("classifier", XGBClassifier(
@@ -37,48 +42,52 @@ MODEL_OUTPUT_PATH = Path("models/model.joblib")
 #         )),
 #     ])
 
-# def build_pipeline(num_classes: int) -> Pipeline:
+# def build_pipeline(num_classes: int, class_weights: dict = None) -> Pipeline:
 #     return Pipeline([
 #         ("preprocessor", build_feature_pipeline()),
 #         ("classifier", RandomForestClassifier(
-#             n_estimators=400,
+#             bootstrap=True,
+#             n_estimators=500,
+#             max_features='sqrt',
 #             max_depth=10,
 #             min_samples_leaf=5,
-#             class_weight="balanced",
+#             class_weight=class_weights,
+            
 #             random_state=42,
 #             n_jobs=-1,
 #         )),
 #     ])
 
-# def build_pipeline(num_classes: int) -> Pipeline:
-#     return Pipeline([
-#         ("preprocessor", build_feature_pipeline()),
-#         ("classifier", KNeighborsClassifier(
-#             n_neighbors=15,
-#             weights="distance",   # closer neighbors vote more heavily
-#             metric="euclidean",
-#             n_jobs=-1,
-#         )),
-#     ])
-
-from sklearn.linear_model import LogisticRegression
-
 def build_pipeline(num_classes: int, class_weights: dict = None) -> Pipeline:
     return Pipeline([
         ("preprocessor", build_feature_pipeline()),
-        ("classifier", LogisticRegression(
-            #multi_class="multinomial",
-            solver="lbfgs",
-            max_iter=1000,
-            C=1.0,               # inverse regularization strength
-            class_weight=class_weights,
-            random_state=42,
+        ("classifier", KNeighborsClassifier(
+            n_neighbors=10,
+            weights="distance",   # closer neighbors vote more heavily
+            #metric="euclidean",
+           
             n_jobs=-1,
         )),
     ])
 
+# from sklearn.linear_model import LogisticRegression
 
-from sklearn.utils.class_weight import compute_class_weight
+# def build_pipeline(num_classes: int, class_weights: dict = None) -> Pipeline:
+#     return Pipeline([
+#         ("preprocessor", build_feature_pipeline()),
+#         ("classifier", LogisticRegression(
+#             #multi_class="multinomial",
+#             solver="lbfgs",
+#             max_iter=1000,
+#             C=1.0,               # inverse regularization strength
+#             class_weight=class_weights,
+#             random_state=42,
+#             n_jobs=-1,
+#         )),
+#     ])
+
+
+#from sklearn.utils.class_weight import compute_class_weight
 
 def custom_weights(y_train_enc: np.ndarray) -> dict:
 
@@ -86,17 +95,18 @@ def custom_weights(y_train_enc: np.ndarray) -> dict:
     counts  = np.bincount(y_train_enc)
     freqs   = counts / len(y_train_enc)
 
-    raw_weights = 1.0 / freqs               # inverse frequency
-    sqrt_weights = np.sqrt(raw_weights)     # soften with sqrt
-    sqrt_weights /= sqrt_weights.min()      # normalize so most common class = 1.0
+    raw_weights = 1.0 / freqs               
+    sqrt_weights = np.sqrt(raw_weights)     
+    sqrt_weights /= sqrt_weights.min()      
 
     return {cls: sqrt_weights[cls] for cls in classes}
 
 
 def time_based_split(X, y, train_size=0.65):
     """
-    Chronological split — preserves temporal order.
-    Prevents future pitch data from leaking into the training set.
+    
+
+    chronolopgical split of X and y into train and test sets.
     """
     split_idx = int(len(X) * train_size)
     return (
@@ -107,10 +117,8 @@ def time_based_split(X, y, train_size=0.65):
 
 def filter_unseen_test_classes(X_test, y_test_raw, le: LabelEncoder):
     """
-    Remove test rows whose class was never seen during training.
-    Necessary after a time-based split — pitchers occasionally add/drop
-    pitch types mid-season, so the test window may contain classes the
-    encoder was never fit on.
+    filter out test rows whose classes were not in training
+
     """
     seen = set(le.classes_)
     mask = y_test_raw.isin(seen)
@@ -121,41 +129,61 @@ def filter_unseen_test_classes(X_test, y_test_raw, le: LabelEncoder):
     return X_test.loc[mask], y_test_raw.loc[mask]
 
 
-def train(output_path: Path = MODEL_OUTPUT_PATH) -> Pipeline:
+def train(output_path: Path = MODEL_OUTPUT_PATH, first_name: str = "Tarik" , last_name: str = "Skubal", years: int = 2) -> Pipeline:
     """
-    Full training run with chronological split and calibrated XGBoost.
-    Logs all metrics to MLflow and saves model + label encoder to disk.
+    
+    runs training loop over top pitchers, returnning df with model scoring
+    stores model artifact with MLflow
     """
-    df = pull_data("Kevin", "Gausman", "2024-01-01", "2025-12-31")
-    print(f"puling data... {len(df)} rows")
+    # df = pull_data("Kevin", "Gausman", "2024-01-01", "2025-12-31")
+    # pitchers = [
+    # "Logan Webb", "Garrett Crochet", "Cristopher Sánchez", "Max Fried", "Carlos Rodón",
+    # "Tarik Skubal", "Kevin Gausman", "Zac Gallen", "Framber Valdez", "Paul Skenes",
+    # "Zack Littell", "Bryan Woo"
+    # ]
+
+    # accs = []
+    # f1s = []
+    # lls = []
+    # lls_v_baseline = []
+    # aucs = []
+
+    # for i in pitchers:
+        
+    #     df = pull_data(i.split(" ")[0], i.split(" ")[1], "2024-01-01", "2025-12-31")
+    #     print(f"Pulling data for {i.split(' ')[0]} {i.split(' ')[1]}...")
+    end_date = date.today().strftime("%Y-%m-%d")
+    start_date = (date.today() - relativedelta(years=years)).strftime("%Y-%m-%d")
+    df = pull_data(first_name, last_name, start_date, end_date )
     df = clean_data(df)
     df = feature_engineering(df)
     X, y = build_features(df)
 
-    # --- chronological split (no shuffling) ---
+    #time base test/train split
     X_train, X_test, y_train_raw, y_test_raw = time_based_split(X, y, train_size=0.65)
     print()
-    # --- encode labels on train set only ---
+    #encoding target labels
     le = LabelEncoder()
     y_train_enc = le.fit_transform(y_train_raw)
 
-    # --- filter test rows with classes unseen in training ---
+    # filter test data to only seen classes
     X_test, y_test_raw = filter_unseen_test_classes(X_test, y_test_raw, le)
     y_test_enc = le.transform(y_test_raw)
 
-    # --- labels array — single source of truth from the encoder ---
+    
     n_classes          = len(le.classes_)
     labels_for_metrics = np.arange(n_classes)
+    #print(len(classes), len(le.classes_))
+    # print(f"Classes: {le.classes_.tolist()}")
+    # print(f"Train size: {len(y_train_enc)} | Test size: {len(y_test_enc)}")
 
-    print(f"Classes: {le.classes_.tolist()}")
-    print(f"Train size: {len(y_train_enc)} | Test size: {len(y_test_enc)}")
-
+    #add custom weighting to avoid bias towards most common class
     class_weights = custom_weights(y_train_enc)
-    print("Class weights:")
-    for cls, w in class_weights.items():
-        print(f"  {le.classes_[cls]}: {w:.3f}")
+    # print("Class weights:")
+    # for cls, w in class_weights.items():
+    #     print(f"  {le.classes_[cls]}: {w:.3f}")
 
-# ...
+    # ...
 
 
     with mlflow.start_run():
@@ -163,8 +191,8 @@ def train(output_path: Path = MODEL_OUTPUT_PATH) -> Pipeline:
         pipeline.fit(X_train, y_train_enc)
 
         y_pred_enc = pipeline.predict(X_test)
-        y_proba    = pipeline.predict_proba(X_test)          # full matrix (n_samples, n_classes)
-        y_pred     = le.inverse_transform(y_pred_enc)        # back to pitch type strings
+        y_proba    = pipeline.predict_proba(X_test)          
+        y_pred     = le.inverse_transform(y_pred_enc)        
 
         # --- metrics ---
         acc   = accuracy_score(y_test_enc, y_pred_enc)
@@ -172,17 +200,28 @@ def train(output_path: Path = MODEL_OUTPUT_PATH) -> Pipeline:
         f1_m  = f1_score(y_test_enc, y_pred_enc, average="macro")
         ll    = log_loss(y_test_enc, y_proba, labels=labels_for_metrics)
         auc   = roc_auc_score(y_test_enc, y_proba, multi_class="ovr",
-                              average="weighted", labels=labels_for_metrics)
+                            average="weighted", labels=labels_for_metrics)
         top2  = top_k_accuracy_score(y_test_enc, y_proba, k=2,
-                                     labels=labels_for_metrics)
+                                    labels=labels_for_metrics)
 
-        # --- baseline: always predict training class proportions ---
+        # create baseline for log loss
         base_probs     = np.bincount(y_train_enc, minlength=n_classes) / len(y_train_enc)
         baseline_probs = np.tile(base_probs, (len(y_test_enc), 1))
         baseline_ll    = log_loss(y_test_enc, baseline_probs, labels=labels_for_metrics)
         improvement    = baseline_ll - ll
 
-        # --- log to mlflow ---
+        # accs.append(acc)
+        # f1s.append(f1_w)   
+        # lls.append(ll) 
+        # lls_v_baseline.append(improvement)
+        # aucs.append(auc)
+
+    #store results in dataframe
+    # results_dict = {'Name': pitchers, 'Accuracy': accs, 'F1 Weighted': f1s, 'Log Loss': lls, 'Log Loss Improvement': lls_v_baseline, 'ROC-AUC': aucs}
+    # results_df = pd.DataFrame(results_dict)
+    # return results_df
+
+           # --- log to mlflow ---
         mlflow.log_params({
             "n_estimators":    400,
             "learning_rate":   0.05,
@@ -197,7 +236,6 @@ def train(output_path: Path = MODEL_OUTPUT_PATH) -> Pipeline:
             "log_loss":          ll,
             "baseline_log_loss": baseline_ll,
             "ll_improvement":    improvement,
-            "roc_auc":           auc,
             "accuracy":          acc,
             "f1_weighted":       f1_w,
             "f1_macro":          f1_m,
@@ -205,16 +243,15 @@ def train(output_path: Path = MODEL_OUTPUT_PATH) -> Pipeline:
         })
         mlflow.sklearn.log_model(pipeline, "model")
 
-        # --- print summary ---
+        
         present_classes = sorted(y_test_raw.unique())
         print(classification_report(y_test_raw, y_pred, target_names=present_classes))
         print(f"Accuracy:    {acc:.4f}")
         print(f"Top-2 Acc:   {top2:.4f}")
-        print(f"ROC-AUC:     {auc:.4f}")
         print(f"Log Loss:    {ll:.4f}  (Baseline: {baseline_ll:.4f}, "
-              f"Improvement: {improvement:.4f})")
+            f"Improvement: {improvement:.4f})")
 
-    # --- save artifacts ---
+    
     output_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pipeline, output_path)
     joblib.dump(le, output_path.parent / "label_encoder.joblib")

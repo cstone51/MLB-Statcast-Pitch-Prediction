@@ -70,15 +70,16 @@ from sklearn.compose import ColumnTransformer
 
 
 def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
-
+    """
+    creates several new features
+    """
     df['on_1b'] = df['on_1b'].fillna(0)
     df['runner_on_first'] = np.where(df['on_1b'] > 0.0001, 1, 0)
 
     df['inning_top'] = np.where(df['inning_topbot'] == 'Top', 1, 0)
     df['batter_is_right'] = np.where(df['stand'] == 'R', 1, 0)
 
-    # Shift within at-bat only — first pitch of each at-bat gets NaN, not
-    # the last pitch of the previous at-bat
+    
     df['prev_pitch_1'] = (
         df.groupby('at_bat_number')['pitch_type']
         .shift(1)
@@ -103,9 +104,7 @@ def build_feature_pipeline() -> ColumnTransformer:
         ("scaler", StandardScaler()),
     ])
     categorical_pipe = Pipeline([
-        # handle_unknown="ignore" means unseen pitch types at inference
-        # (e.g. a pitch type in test not seen in train) get all-zero encoding
-        # rather than crashing
+   
         ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
     ])
     return ColumnTransformer([
