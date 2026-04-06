@@ -3,7 +3,7 @@
 > A machine learning system for predicting pitch type selection and identifying key drivers by using MLB statcast data
 
 ---
-## Link to Analysis Paper : 
+## Link to Analysis Paper : https://github.com/cstone51/MLB-Statcast-Pitch-Prediction/blob/main/MLB_Pitch_Prediction%20-%20Analysis%20Paper.pdf
 
 ## Overview
 
