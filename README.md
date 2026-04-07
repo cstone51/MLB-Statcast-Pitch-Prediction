@@ -135,27 +135,19 @@ Navigate to `http://localhost:5000` to compare runs across pitchers and hyperpar
 ## Methodology
 
 ### Train / Test Split
-A **chronological split** is used (first 65% of pitches = train, last 35% = test) rather than a random shuffle. This reflects real-world deployment conditions — the model is always predicting future pitches from a pitcher it has only observed historically — and prevents future at-bat data from leaking into the training set.
+a **chronological split** is used (first 65% of pitches = train, last 35% = test) rather than a random shuffle. This reflects real-world deployment conditions — the model is always predicting future pitches from a pitcher it has only observed historically and prevents future at-bat data from leaking into the training set.
 
 ### Minority Class Handling
-Pitch types appearing fewer than a configurable threshold of times are removed before training to prevent `stratify` errors and ensure the model is not evaluated on classes it had insufficient signal to learn. Test rows containing pitch types unseen during training are filtered out separately after the split.
+pitch types appearing fewer than a configurable threshold of times are removed before training to prevent `stratify` errors and ensure the model is not evaluated on classes it had insufficient signal to learn. Test rows containing pitch types unseen during training are filtered out separately after the split.
 
 ### Class Weighting
 Rather than using raw class frequencies (which causes minority pitch types to never be predicted) or fully balanced weights (which distorts the natural pitch distribution), a **square root inverse frequency** weighting scheme is applied. This nudges the model toward minority classes while preserving the pitcher's natural pitch mix tendencies.
 
 ### Evaluation
-All models are compared against a **naive baseline** that always predicts the training set class distribution. Log loss improvement over this baseline is the primary evaluation metric, as it captures both classification accuracy and probability calibration — critical for a system intended to output actionable confidence estimates.
+All models are compared against a **naive baseline** that always predicts the training set class distribution. Log loss improvement over this baseline is the primary evaluation metric, as it captures both classification accuracy and probability calibration 
 
 ---
 
-## Model Comparison
-
-Four classifiers were evaluated on this problem:
-
-- **Logistic Regression** — linear baseline; well-calibrated probabilities via softmax; strong when pitch selection is driven by additive count and sequencing tendencies
-- **Random Forest** — parallel ensemble; captures nonlinear sequencing interactions (e.g. following two fastballs with a breaking ball on 0-2); robust to overfitting on small single-pitcher datasets
-- **XGBoost** — sequential boosting; state-of-the-art on large tabular datasets; susceptible to noise amplification on small samples with a temporal split
-- **KNN** — instance-based reference model; normal accuracy but catastrophically high log loss due to hard zero probabilities for unrepresented neighbor classes
 
 ---
 
@@ -172,23 +164,10 @@ joblib
 python-dateutil
 ```
 
----
 
-## Limitations & Future Work
-
-- Currently trained on a single pitcher per run — a multi-pitcher generalized model or per-pitcher fine-tuning approach is a natural extension
-- Features do not yet include batter-specific statistics, catcher tendencies, or pitch velocity/movement from prior pitches
-- No API serving layer — a FastAPI wrapper around `predict.py` would enable real-time integration
-- Hyperparameter tuning is manual — incorporating `optuna` or `sklearn` grid search logged to MLflow would formalize this
-
----
 
 ## Acknowledgements
 
 Pitch data sourced via [pybaseball](https://github.com/jldbc/pybaseball), which provides a Python interface to Baseball Savant's Statcast database.
 
----
 
-## License
-
-MIT
