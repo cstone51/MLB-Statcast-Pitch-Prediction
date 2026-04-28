@@ -12,19 +12,6 @@ This project trains a multiclass random forest classifier to predict the next pi
 
 ---
 
-## Results Summary
-
-| Model | Log Loss | vs. Baseline | Accuracy | F1 (Weighted) | Top-2 Acc |
-|---|---|---|---|---|---|
-| Random Forest | — | — | — | — | — |
-| Logistic Regression | — | — | — | — | — |
-| XGBoost | — | — | — | — | — |
-| KNN | — | — | — | — | — |
-| **Baseline** | — | — | — | — | — |
-
-> Baseline: always predict training set class distribution regardless of game state.
-
----
 
 ## Project Structure
 
